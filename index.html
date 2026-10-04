@@ -1,9 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ka">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Suro Blast Pro - Cosmic Edition</title>
+  
+  <!-- PWA META TAGS & MANIFEST -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#090614">
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Suro%20Blast%20Pro%22,%22short_name%22:%22SuroBlast%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23090614%22,%22theme_color%22:%22%23090614%22}">
+
   <style>
     :root {
       --cell-size: 42px;
@@ -115,6 +123,10 @@
 
     .best-row.bomb-row span {
       color: #ff4757;
+    }
+
+    .best-row.coin-row span {
+      color: #ffd700;
     }
 
     .lobby-btns-group {
@@ -367,6 +379,19 @@
     }
     .close-btn:active { opacity: 0.8; }
 
+    .daily-reward-day {
+      padding: 10px 4px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 10px;
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.8;
+      color: #aaa;
+    }
+    .daily-reward-day b { font-size: 13px; color: #fff; }
+    .daily-reward-day.active { border-color: #50fa7b; background: rgba(80, 250, 123, .12); color: #50fa7b; }
+    .daily-reward-day.claimed { border-color: #50fa7b; background: rgba(80, 250, 123, .08); }
+
     /* ACHIEVEMENT TOAST NOTIFICATION */
     .achievement-toast {
       position: fixed;
@@ -432,6 +457,19 @@
       flex-direction: column;
       align-items: center;
       min-width: 140px;
+      transition: all 0.3s ease;
+    }
+
+    /* COMBO STREAK VISUAL EFFECT */
+    @keyframes comboGlow {
+      0% { box-shadow: 0 0 10px rgba(255, 121, 198, 0.5), 0 0 20px rgba(255, 71, 87, 0.5); transform: scale(1); }
+      50% { box-shadow: 0 0 25px rgba(255, 121, 198, 0.9), 0 0 40px rgba(255, 71, 87, 0.9); transform: scale(1.05); }
+      100% { box-shadow: 0 0 10px rgba(255, 121, 198, 0.5), 0 0 20px rgba(255, 71, 87, 0.5); transform: scale(1); }
+    }
+
+    .score-board-combo-active {
+      animation: comboGlow 0.6s infinite ease-in-out;
+      border-color: #ff79c6 !important;
     }
 
     .score-title {
@@ -746,7 +784,7 @@
       margin-bottom: 8px;
     }
 
-    .go-score { font-size: 16px; color: #8c8aa7; margin-bottom: 20px; font-weight: 600; }
+    .go-score { font-size: 16px; color: #8c8aa7; margin-bottom: 20px; font-weight: 600; text-align: center; }
     .go-score span { font-size: 32px; font-weight: 900; color: #ffe600; display: block; margin-top: 4px; }
 
     .revive-btn {
@@ -779,7 +817,7 @@
     }
     .restart-btn:active { transform: scale(0.96); }
 
-    /* ================= MOBILE FIT (VISUAL PRESERVING) ================= */
+    /* MOBILE FIT */
     @media (max-width: 500px) {
       :root {
         --mobile-board-width: min(370px, calc(100vw - 24px));
@@ -855,7 +893,6 @@
       #block-container { height: 92px; }
       .shape-wrapper { width: 82px; }
       .powerup-btn { padding: 6px 7px; font-size: 10px; }
-      .score-board-center { min-width: 125px; }
     }
   </style>
 </head>
@@ -868,6 +905,7 @@
       <div class="best-badge-container">
         <div class="best-row">🏆 Classic: <span id="lobby-classic-best">0</span></div>
         <div class="best-row bomb-row">💣 Bomb: <span id="lobby-bomb-best">0</span></div>
+        <div class="best-row coin-row">🪙 Coins: <span id="lobby-coins">0</span></div>
       </div>
       <div class="lobby-btns-group">
         <div class="icon-btn" onclick="playSound('button'); openModal('rewards-modal');" title="Daily Rewards">🎁</div>
@@ -911,18 +949,24 @@
 
   <div id="rewards-modal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-title">🎁 Daily Bonus</div>
-      <div class="settings-row">
-        <span class="settings-label">Bonus (Hammer, Rotate, Swap)</span>
-        <button class="close-btn" style="padding: 8px 14px; font-size: 12px;" onclick="claimDailyReward()">Claim</button>
+      <div class="modal-title">🎁 Daily Reward</div>
+      <p id="daily-reward-status" style="font-size:13px;color:#8c8aa7;text-align:center;margin:0 0 12px;">Claim your daily reward!</p>
+      <div id="daily-reward-days" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px;">
+        <div class="daily-reward-day" data-day="1">Day 1<br><b>🔨 +1</b></div>
+        <div class="daily-reward-day" data-day="2">Day 2<br><b>🔄 +1</b></div>
+        <div class="daily-reward-day" data-day="3">Day 3<br><b>🔀 +1</b></div>
+        <div class="daily-reward-day" data-day="4">Day 4<br><b>🔨 +2</b></div>
+        <div class="daily-reward-day" data-day="5">Day 5<br><b>🔄 +2</b></div>
+        <div class="daily-reward-day" data-day="6">Day 6<br><b>🔀 +2</b></div>
+        <div class="daily-reward-day" data-day="7">Day 7<br><b>🎁 +2 each</b></div>
       </div>
-      <p style="font-size: 12px; color: #8c8aa7; text-align: center; line-height: 1.4;">Log in daily to claim free cosmic power-ups!</p>
+      <button id="daily-reward-claim-btn" class="close-btn" style="width:100%;margin-bottom:8px;" onclick="claimDailyReward()">🎁 Claim Reward</button>
       <button class="close-btn" onclick="playSound('button'); closeModal('rewards-modal');">Close</button>
     </div>
   </div>
 
- <button class="btn-main-play" onclick="playSound('button'); startGame('classic');">⏳ Classic</button>
-<button class="btn-bomb-play" onclick="playSound('button'); startGame('bomb');">💣 Bomb</button>
+  <div id="missions-modal" class="modal-overlay">
+    <div class="modal-card">
       <div class="modal-title">🎯 Daily Missions</div>
       <div class="settings-row">
         <span class="settings-label">Clear 5 lines total</span>
@@ -970,14 +1014,14 @@
     </div>
 
     <div id="powerups-bar">
-      <button class="powerup-btn" id="hammer-btn" onclick="toggleHammer()">🔨 Hammer (<span id="hammer-count">1</span>)</button>
+      <button class="powerup-btn" id="hammer-btn" onclick="useHammer()">🔨 Hammer (<span id="hammer-count">1</span>)</button>
       <button class="powerup-btn" id="rotate-btn" onclick="useRotatePowerup()">🔄 Rotate (<span id="rotate-count">3</span>)</button>
       <button class="powerup-btn" id="swap-btn" onclick="useSwapPowerup()">🔀 Swap (<span id="swap-count">2</span>)</button>
     </div>
 
     <div id="game-board">
       <div id="perfect-clear-text">PERFECT CLEAR! 🌟</div>
-   </div>
+    </div>
 
     <div id="block-container">
       <div class="shape-wrapper" id="slot-0"></div>
@@ -994,6 +1038,19 @@
   </div>
 
   <script>
+    /* ================= REGISTER SERVICE WORKER FOR PWA / OFFLINE ================= */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+          self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+          self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+      });
+    }
+
     /* ================= DYNAMIC SPACE CANVAS ================= */
     const spaceCanvas = document.getElementById('space-bg');
     const spaceCtx = spaceCanvas.getContext('2d');
@@ -1118,11 +1175,27 @@
       }
     }
 
+    /* ================= COINS SYSTEM ================= */
+    let coins = parseInt(localStorage.getItem('suro_coins') || '0', 10);
+
+    function addCoins(amount) {
+      if (amount <= 0) return;
+      coins += amount;
+      localStorage.setItem('suro_coins', coins);
+      updateCoinsUI();
+    }
+
+    function updateCoinsUI() {
+      const coinLobby = document.getElementById('lobby-coins');
+      if (coinLobby) coinLobby.textContent = coins;
+    }
+
     /* ================= GAME ENGINE ================= */
     const BOARD_SIZE = 8;
     const boardEl = document.getElementById('game-board');
     const scoreEl = document.getElementById('score');
     const bestScoreEl = document.getElementById('best-score');
+    const scoreBoardCenterEl = document.getElementById('score-board-center');
     
     const lobbyClassicBestEl = document.getElementById('lobby-classic-best');
     const lobbyBombBestEl = document.getElementById('lobby-bomb-best');
@@ -1142,16 +1215,19 @@
 
     let score = 0;
     let combo = 0;
-    let hasClearedInHand = false; // Tracks if any line was cleared in current 3-block hand
+    let hasClearedInHand = false;
     let reviveLeft = 3;
+    let isWatchingAd = false;
+    let newRecordAchieved = false;
     
-    let classicBestScore = localStorage.getItem('suroblast_classic_highscore') || 0;
-    let bombBestScore = localStorage.getItem('suroblast_bomb_highscore') || 0;
+    let classicBestScore = parseInt(localStorage.getItem('suroblast_classic_highscore') || '0', 10);
+    let bombBestScore = parseInt(localStorage.getItem('suroblast_bomb_highscore') || '0', 10);
 
     lobbyClassicBestEl.textContent = classicBestScore;
     lobbyBombBestEl.textContent = bombBestScore;
     lbClassicBestEl.textContent = classicBestScore;
     lbBombBestEl.textContent = bombBestScore;
+    updateCoinsUI();
 
     let gameMode = 'classic';
     let bombCounters = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
@@ -1160,9 +1236,13 @@
     let timerInterval = null;
     let timeLeft = 100;
 
-    let hammerCount = 1;
-    let rotateCount = 3;
-    let swapCount = 2;
+    const savedPowerups = (() => {
+      try { return JSON.parse(localStorage.getItem('suro_powerups') || 'null'); }
+      catch (e) { return null; }
+    })();
+    let hammerCount = Number.isInteger(savedPowerups?.hammer) && savedPowerups.hammer >= 0 ? savedPowerups.hammer : 1;
+    let rotateCount = Number.isInteger(savedPowerups?.rotate) && savedPowerups.rotate >= 0 ? savedPowerups.rotate : 3;
+    let swapCount = Number.isInteger(savedPowerups?.swap) && savedPowerups.swap >= 0 ? savedPowerups.swap : 2;
     let hammerActive = false;
     let clearedLinesCount = 0;
 
@@ -1184,6 +1264,37 @@
     ];
 
     let activeDrag = null;
+
+    function addScore(pts) {
+      score += pts;
+      scoreEl.textContent = score;
+
+      if (gameMode === 'classic') {
+        if (score > classicBestScore) {
+          if (!newRecordAchieved && classicBestScore > 0) {
+            showNewBestScorePopup();
+            newRecordAchieved = true;
+          }
+          classicBestScore = score;
+          localStorage.setItem('suroblast_classic_highscore', classicBestScore);
+          bestScoreEl.textContent = classicBestScore;
+          lobbyClassicBestEl.textContent = classicBestScore;
+          lbClassicBestEl.textContent = classicBestScore;
+        }
+      } else if (gameMode === 'bomb') {
+        if (score > bombBestScore) {
+          if (!newRecordAchieved && bombBestScore > 0) {
+            showNewBestScorePopup();
+            newRecordAchieved = true;
+          }
+          bombBestScore = score;
+          localStorage.setItem('suroblast_bomb_highscore', bombBestScore);
+          bestScoreEl.textContent = bombBestScore;
+          lobbyBombBestEl.textContent = bombBestScore;
+          lbBombBestEl.textContent = bombBestScore;
+        }
+      }
+    }
 
     function startGame(mode) {
       initAudio();
@@ -1210,9 +1321,13 @@
       lobbyBombBestEl.textContent = bombBestScore;
       lbClassicBestEl.textContent = classicBestScore;
       lbBombBestEl.textContent = bombBestScore;
+      updateCoinsUI();
     }
 
-    function openModal(id) { document.getElementById(id).classList.add('show'); }
+    function openModal(id) {
+      if (id === 'rewards-modal') updateDailyRewardUI();
+      document.getElementById(id).classList.add('show');
+    }
     function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
     function setTheme(themeClass, el) {
@@ -1221,29 +1336,140 @@
       el.classList.add('active');
     }
 
+    function localDayKey(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function dayNumberFromKey(key) {
+      const parts = key.split('-').map(Number);
+      return Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000;
+    }
+
+    function getDailyRewardState() {
+      try {
+        const state = JSON.parse(localStorage.getItem('suro_daily_reward') || '{}');
+        return {
+          lastClaim: typeof state.lastClaim === 'string' ? state.lastClaim : '',
+          streak: Number.isInteger(state.streak) && state.streak >= 1 && state.streak <= 7 ? state.streak : 0
+        };
+      } catch (e) { return { lastClaim: '', streak: 0 }; }
+    }
+
+    function getNextRewardDay(state) {
+      const today = localDayKey();
+      if (state.lastClaim === today) return state.streak || 1;
+      if (state.lastClaim && dayNumberFromKey(today) - dayNumberFromKey(state.lastClaim) === 1) {
+        return (state.streak % 7) + 1;
+      }
+      return 1;
+    }
+
+    function applyDailyReward(day) {
+      if (day === 1) hammerCount += 1;
+      else if (day === 2) rotateCount += 1;
+      else if (day === 3) swapCount += 1;
+      else if (day === 4) hammerCount += 2;
+      else if (day === 5) rotateCount += 2;
+      else if (day === 6) swapCount += 2;
+      else if (day === 7) { hammerCount += 2; rotateCount += 2; swapCount += 2; }
+    }
+
     function claimDailyReward() {
-      hammerCount += 1;
-      rotateCount += 2;
-      swapCount += 1;
+      const state = getDailyRewardState();
+      const today = localDayKey();
+      if (state.lastClaim === today) {
+        updateDailyRewardUI();
+        return;
+      }
+      const rewardDay = getNextRewardDay(state);
+      applyDailyReward(rewardDay);
+      try {
+        localStorage.setItem('suro_daily_reward', JSON.stringify({ lastClaim: today, streak: rewardDay }));
+      } catch (e) {}
+      savePowerups();
       updatePowerupUI();
-      alert("Bonus claimed! (+1 Hammer, +2 Rotates, +1 Swap)");
-      closeModal('rewards-modal');
+      updateDailyRewardUI();
+      playSound('button');
+    }
+
+    function updateDailyRewardUI() {
+      const state = getDailyRewardState();
+      const today = localDayKey();
+      const claimedToday = state.lastClaim === today;
+      const nextDay = getNextRewardDay(state);
+      const status = document.getElementById('daily-reward-status');
+      const claimBtn = document.getElementById('daily-reward-claim-btn');
+      const days = document.querySelectorAll('.daily-reward-day');
+      if (!status || !claimBtn) return;
+      status.textContent = claimedToday
+        ? `✅ Today's reward claimed! Come back tomorrow. (${state.streak}/7)`
+        : `Next reward: Day ${nextDay} of 7`;
+      claimBtn.disabled = claimedToday;
+      claimBtn.textContent = claimedToday ? '✅ Claimed today' : '🎁 Claim Day ' + nextDay;
+      claimBtn.style.opacity = claimedToday ? '.55' : '1';
+      claimBtn.style.cursor = claimedToday ? 'not-allowed' : 'pointer';
+      days.forEach(el => {
+        const n = Number(el.dataset.day);
+        el.classList.toggle('active', n === nextDay && !claimedToday);
+        el.classList.toggle('claimed', claimedToday && n <= state.streak);
+      });
+    }
+
+    function savePowerups() {
+      try {
+        localStorage.setItem('suro_powerups', JSON.stringify({
+          hammer: hammerCount, rotate: rotateCount, swap: swapCount
+        }));
+      } catch (e) {}
     }
 
     function updatePowerupUI() {
       document.getElementById('hammer-count').textContent = hammerCount;
       document.getElementById('rotate-count').textContent = rotateCount;
       document.getElementById('swap-count').textContent = swapCount;
+      savePowerups();
+    }
+
+    function buyPowerup(type) {
+      const prices = { hammer: 150, rotate: 80, swap: 100 };
+      const price = prices[type];
+
+      if (coins >= price) {
+        coins -= price;
+        localStorage.setItem('suro_coins', coins);
+        updateCoinsUI();
+
+        if (type === 'hammer') hammerCount++;
+        if (type === 'rotate') rotateCount++;
+        if (type === 'swap') swapCount++;
+
+        savePowerups();
+        updatePowerupUI();
+        playSound('button');
+      } else {
+        alert(`არ გაქვს საკმარისი მონეტები! 🪙 ${price}`);
+      }
+    }
+
+    function useHammer() {
+      if (hammerCount <= 0) {
+        buyPowerup('hammer');
+        return;
+      }
+      toggleHammer();
     }
 
     function showPraiseText(clearedLines, comboVal) {
       let wordIndex = 0;
       if (clearedLines >= 3 || comboVal >= 4) {
-        wordIndex = 2 + Math.floor(Math.random() * 3); // Unstoppable, Amazing, Fantastic
+        wordIndex = 2 + Math.floor(Math.random() * 3);
       } else if (clearedLines === 2 || comboVal >= 2) {
-        wordIndex = 1 + Math.floor(Math.random() * 2); // Awesome, Unstoppable
+        wordIndex = 1 + Math.floor(Math.random() * 2);
       } else {
-        wordIndex = Math.floor(Math.random() * 2); // Great, Awesome
+        wordIndex = Math.floor(Math.random() * 2);
       }
 
       const text = PRAISE_WORDS[wordIndex];
@@ -1263,6 +1489,19 @@
       setTimeout(() => {
         praiseEl.remove();
       }, 1100);
+    }
+
+    function showNewBestScorePopup() {
+      playSound('perfect');
+      const popup = document.createElement('div');
+      popup.className = 'praise-text';
+      popup.textContent = '👑 NEW BEST SCORE!';
+      popup.style.color = '#ffe600';
+      popup.style.textShadow = '0 0 20px rgba(255, 230, 0, 0.9), 3px 3px 0 #b38600';
+      popup.style.left = '50%';
+      popup.style.top = '35%';
+      boardEl.appendChild(popup);
+      setTimeout(() => popup.remove(), 1400);
     }
 
     function showAchievement(title, desc) {
@@ -1337,7 +1576,10 @@
     }
 
     function useRotatePowerup() {
-      if (rotateCount <= 0) return;
+      if (rotateCount <= 0) {
+        buyPowerup('rotate');
+        return;
+      }
       playSound('button');
       rotateCount--;
       updatePowerupUI();
@@ -1353,7 +1595,10 @@
     }
 
     function useSwapPowerup() {
-      if (swapCount <= 0) return;
+      if (swapCount <= 0) {
+        buyPowerup('swap');
+        return;
+      }
       playSound('button');
       swapCount--;
       updatePowerupUI();
@@ -1362,9 +1607,25 @@
     }
 
     function watchAdAndRevive() {
-      if (reviveLeft <= 0) return;
+      if (reviveLeft <= 0 || isWatchingAd) return;
       playSound('button');
-      executeRevive();
+
+      isWatchingAd = true;
+      reviveBtn.disabled = true;
+
+      let adTime = 5;
+      reviveBtn.textContent = `⏳ Watching Ad... (${adTime}s)`;
+
+      const adInterval = setInterval(() => {
+        adTime--;
+        if (adTime > 0) {
+          reviveBtn.textContent = `⏳ Watching Ad... (${adTime}s)`;
+        } else {
+          clearInterval(adInterval);
+          isWatchingAd = false;
+          executeRevive();
+        }
+      }, 1000);
     }
 
     function executeRevive() {
@@ -1378,7 +1639,7 @@
 
     function updateReviveButtonState() {
       reviveBtn.textContent = `🎬 Watch Ad (${reviveLeft})`;
-      reviveBtn.disabled = (reviveLeft <= 0);
+      reviveBtn.disabled = (reviveLeft <= 0 || isWatchingAd);
     }
 
     function createBoard() {
@@ -1405,6 +1666,7 @@
         bombCounters[r][c] = null;
         renderBoardUI();
         hammerCount--;
+        savePowerups();
         hammerActive = false;
         document.getElementById('hammer-btn').classList.remove('active-hammer');
         updatePowerupUI();
@@ -1454,6 +1716,7 @@
       if (!hasClearedInHand) {
         combo = 0;
         comboTopEl.textContent = 0;
+        scoreBoardCenterEl.classList.remove('score-board-combo-active');
       }
       hasClearedInHand = false;
 
@@ -1709,7 +1972,16 @@
         addScore((60 * clearedLines) + (combo * 30));
         comboTopEl.textContent = combo;
 
-        // SHOW PRAISE WORDS EFFECT!
+        // Combo-ს დინამიური ვიზუალური ეფექტი
+        if (combo >= 2) {
+          scoreBoardCenterEl.classList.add('score-board-combo-active');
+        }
+
+        // 3x ან მეტ კომბოზე +1 მონეტა
+        if (combo >= 3) {
+          addCoins(1);
+        }
+
         showPraiseText(clearedLines, combo);
 
         clearedLinesCount += clearedLines;
@@ -1791,6 +2063,7 @@
     function triggerPerfectClear() {
       playSound('perfect');
       addScore(500);
+      addCoins(10); // Perfect Clear-ზე +10 მონეტა
       perfectClearEl.classList.add('show');
       setTimeout(() => perfectClearEl.classList.remove('show'), 1500);
     }
@@ -1823,6 +2096,13 @@
 
     function triggerGameOver() {
       stopTimer();
+
+      // ყოველ 1000 ქულაზე +1 მონეტა
+      const earnedCoins = Math.floor(score / 1000);
+      if (earnedCoins > 0) {
+        addCoins(earnedCoins);
+      }
+
       finalScoreEl.textContent = score;
       gameOverModal.classList.add('show');
     }
@@ -1837,44 +2117,26 @@
       hasClearedInHand = true; 
       movesSinceLastBomb = 0;
       reviveLeft = 3;
+      isWatchingAd = false;
+      newRecordAchieved = false;
       hammerActive = false;
       clearedLinesCount = 0;
-      document.getElementById('mission-progress').textContent = `0/5`;
-      document.getElementById('hammer-btn').classList.remove('active-hammer');
-      updateReviveButtonState();
-      updatePowerupUI();
+
       scoreEl.textContent = 0;
       comboTopEl.textContent = 0;
-      createBoard();
-      generateShapes();
-      if (gameMode === 'bomb') startTimer();
-    }
+      document.getElementById('mission-progress').textContent = '0/5';
+      scoreBoardCenterEl.classList.remove('score-board-combo-active');
 
-    function addScore(points) {
-      score += points;
-      scoreEl.textContent = score;
+      updateReviveButtonState();
+      updatePowerupUI();
+      createBoard();
+      renderBoardUI();
+      generateShapes();
 
       if (gameMode === 'bomb') {
-        if (score > bombBestScore) {
-          bombBestScore = score;
-          bestScoreEl.textContent = bombBestScore;
-          lobbyBombBestEl.textContent = bombBestScore;
-          lbBombBestEl.textContent = bombBestScore;
-          localStorage.setItem('suroblast_bomb_highscore', bombBestScore);
-        }
-      } else {
-        if (score > classicBestScore) {
-          classicBestScore = score;
-          bestScoreEl.textContent = classicBestScore;
-          lobbyClassicBestEl.textContent = classicBestScore;
-          lbClassicBestEl.textContent = classicBestScore;
-          localStorage.setItem('suroblast_classic_highscore', classicBestScore);
-        }
+        startTimer();
       }
-      checkAchievements();
     }
-
-    createBoard();
   </script>
 </body>
 </html>
