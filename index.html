@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ka">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -1265,37 +1265,6 @@
 
     let activeDrag = null;
 
-    function addScore(pts) {
-      score += pts;
-      scoreEl.textContent = score;
-
-      if (gameMode === 'classic') {
-        if (score > classicBestScore) {
-          if (!newRecordAchieved && classicBestScore > 0) {
-            showNewBestScorePopup();
-            newRecordAchieved = true;
-          }
-          classicBestScore = score;
-          localStorage.setItem('suroblast_classic_highscore', classicBestScore);
-          bestScoreEl.textContent = classicBestScore;
-          lobbyClassicBestEl.textContent = classicBestScore;
-          lbClassicBestEl.textContent = classicBestScore;
-        }
-      } else if (gameMode === 'bomb') {
-        if (score > bombBestScore) {
-          if (!newRecordAchieved && bombBestScore > 0) {
-            showNewBestScorePopup();
-            newRecordAchieved = true;
-          }
-          bombBestScore = score;
-          localStorage.setItem('suroblast_bomb_highscore', bombBestScore);
-          bestScoreEl.textContent = bombBestScore;
-          lobbyBombBestEl.textContent = bombBestScore;
-          lbBombBestEl.textContent = bombBestScore;
-        }
-      }
-    }
-
     function startGame(mode) {
       initAudio();
       gameMode = mode;
@@ -2121,22 +2090,51 @@
       newRecordAchieved = false;
       hammerActive = false;
       clearedLinesCount = 0;
-
-      scoreEl.textContent = 0;
-      comboTopEl.textContent = 0;
-      document.getElementById('mission-progress').textContent = '0/5';
+      document.getElementById('mission-progress').textContent = `0/5`;
+      document.getElementById('hammer-btn').classList.remove('active-hammer');
       scoreBoardCenterEl.classList.remove('score-board-combo-active');
-
       updateReviveButtonState();
       updatePowerupUI();
+      scoreEl.textContent = 0;
+      comboTopEl.textContent = 0;
       createBoard();
-      renderBoardUI();
       generateShapes();
+      if (gameMode === 'bomb') startTimer();
+    }
+
+    function addScore(points) {
+      score += points;
+      scoreEl.textContent = score;
+
+      let currentBest = (gameMode === 'bomb') ? bombBestScore : classicBestScore;
+
+      // New High Score-ის გაფრთხილება
+      if (score > currentBest && currentBest > 0 && !newRecordAchieved) {
+        newRecordAchieved = true;
+        showNewBestScorePopup();
+      }
 
       if (gameMode === 'bomb') {
-        startTimer();
+        if (score > bombBestScore) {
+          bombBestScore = score;
+          bestScoreEl.textContent = bombBestScore;
+          lobbyBombBestEl.textContent = bombBestScore;
+          lbBombBestEl.textContent = bombBestScore;
+          localStorage.setItem('suroblast_bomb_highscore', bombBestScore);
+        }
+      } else {
+        if (score > classicBestScore) {
+          classicBestScore = score;
+          bestScoreEl.textContent = classicBestScore;
+          lobbyClassicBestEl.textContent = classicBestScore;
+          lbClassicBestEl.textContent = classicBestScore;
+          localStorage.setItem('suroblast_classic_highscore', classicBestScore);
+        }
       }
+      checkAchievements();
     }
+
+    createBoard();
   </script>
 </body>
 </html>
